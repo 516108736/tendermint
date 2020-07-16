@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -200,6 +201,33 @@ func (c *baseRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx
 func (c *baseRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	return c.broadcastTX("broadcast_tx_sync", tx)
 }
+
+func (c *baseRPCClient) BroadcastTxSyncBatch(tx []types.Tx) ([]*ctypes.ResultBroadcastTx, error) {
+	return c.broadcastTXBatch("broadcast_tx_sync_batch", tx)
+}
+
+func (c *baseRPCClient) broadcastTXBatch(route string, tx []types.Tx) ([]*ctypes.ResultBroadcastTx, error) {
+	result := make([]*ctypes.ResultBroadcastTx,len(tx))
+	tryCnt:=0
+	for true{
+		if tryCnt==3{
+			panic("broadcastTXBatch broadcastTXBatch broadcastTXBatch")
+		}
+		_, err := c.caller.Call(route, map[string]interface{}{"tx": tx}, &result)
+		if err != nil {
+			fmt.Println("broadcastTXBatch broadcastTXBatch broadcastTXBatch failed",err)
+			//return nil, errors.Wrap(err, route)
+			time.Sleep(5*time.Second)
+			tryCnt++
+		}else{
+			break
+		}
+	}
+
+
+	return result, nil
+}
+
 
 func (c *baseRPCClient) broadcastTX(route string, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	result := new(ctypes.ResultBroadcastTx)

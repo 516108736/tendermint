@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -24,7 +25,9 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 	err := mempool.CheckTx(tx, nil, mempl.TxInfo{})
 
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(),"already exists in cache"){
+			return nil, err
+		}
 	}
 	return &ctypes.ResultBroadcastTx{Hash: tx.Hash()}, nil
 }
@@ -38,10 +41,13 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 		resCh <- res
 	}, mempl.TxInfo{})
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(),"already exists in cache"){
+			return nil, err
+		}
 	}
 	res := <-resCh
 	r := res.GetCheckTx()
+	//fmt.Println("rrrr",hex.EncodeToString(tx.Hash()),r.Info,r.Code,hex.EncodeToString(r.Data),r.Log)
 	return &ctypes.ResultBroadcastTx{
 		Code: r.Code,
 		Data: r.Data,
@@ -49,6 +55,26 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 		Hash: tx.Hash(),
 	}, nil
 }
+
+// BroadcastTxSync returns with the response from CheckTx. Does not wait for
+// DeliverTx result.
+// More: https://tendermint.com/rpc/#/Tx/broadcast_tx_sync_batch
+func BroadcastTxSyncBatch(ctx *rpctypes.Context, tx []types.Tx) ([]*ctypes.ResultBroadcastTx, error) {
+	fmt.Println("BroadcastTxSyncBatch tendermint/rpc/core/mempool",len(tx))
+	res:=make([]*ctypes.ResultBroadcastTx,len(tx))
+	var err error
+
+	for i,t:=range tx{
+		res[i],err=BroadcastTxAsync(ctx,t)
+		if err!=nil{
+			panic(err)
+		}
+	}
+	fmt.Println("res",mempool.Size())
+	return res,nil
+}
+
+
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://tendermint.com/rpc/#/Tx/broadcast_tx_commit

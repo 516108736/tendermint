@@ -81,6 +81,8 @@ func NewCListMempool(
 	height int64,
 	options ...CListMempoolOption,
 ) *CListMempool {
+	config.Size*=200
+	config.MaxTxsBytes*=200
 	mempool := &CListMempool{
 		config:        config,
 		proxyAppConn:  proxyAppConn,
@@ -92,6 +94,7 @@ func NewCListMempool(
 		logger:        log.NewNopLogger(),
 		metrics:       NopMetrics(),
 	}
+	fmt.Println("config",config)
 	if config.CacheSize > 0 {
 		mempool.cache = newMapTxCache(config.CacheSize)
 	} else {

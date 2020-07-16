@@ -96,6 +96,10 @@ func (c *Local) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) 
 	return core.BroadcastTxSync(c.ctx, tx)
 }
 
+func (c *Local) BroadcastTxSyncBatch(tx []types.Tx) ([]*ctypes.ResultBroadcastTx, error) {
+	return core.BroadcastTxSyncBatch(c.ctx, tx)
+}
+
 func (c *Local) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	return core.UnconfirmedTxs(c.ctx, limit)
 }

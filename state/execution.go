@@ -83,7 +83,9 @@ func (blockExec *BlockExecutor) DB() dbm.DB {
 func (blockExec *BlockExecutor) SetEventBus(eventBus types.BlockEventPublisher) {
 	blockExec.eventBus = eventBus
 }
-
+var(
+	LogFlag="TimeAboutBlock"
+)
 // CreateProposalBlock calls state.MakeBlock with evidence from the evpool
 // and txs from the mempool. The max bytes must be big enough to fit the commit.
 // Up to 1/10th of the block space is allcoated for maximum sized evidence.
@@ -93,7 +95,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	state State, commit *types.Commit,
 	proposerAddr []byte,
 ) (*types.Block, *types.PartSet) {
-
+	fmt.Println("====================",LogFlag,time.Now().Format("2006/01/02 15:04:05"),"ready to create block","height",height)
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -104,8 +106,9 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Fetch a limited amount of valid txs
 	maxDataBytes := types.MaxDataBytes(maxBytes, state.Validators.Size(), len(evidence))
 	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
-
-	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
+	a,b:= state.MakeBlock(height, txs, commit, evidence, proposerAddr)
+	fmt.Println(LogFlag,time.Now().Format("2006/01/02 15:04:05"),"end to create block","height",a.Height,"hash",a.Hash().String())
+	return a,b
 }
 
 // ValidateBlock validates the given block against the given state.
@@ -185,7 +188,9 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	return state, nil
 }
-
+var(
+	cnt=int64(0)
+)
 // Commit locks the mempool, runs the ABCI Commit message, and updates the
 // mempool.
 // It returns the result of calling abci.Commit (the AppHash), and an error.
@@ -219,12 +224,14 @@ func (blockExec *BlockExecutor) Commit(
 	}
 	// ResponseCommit has no error code - just data
 
-	blockExec.logger.Info(
-		"Committed state",
-		"height", block.Height,
-		"txs", block.NumTxs,
-		"appHash", fmt.Sprintf("%X", res.Data),
-	)
+	//blockExec.logger.Info(
+	//	"Committed state",
+	//	"height", block.Height,
+	//	"txs", block.NumTxs,
+	//	"appHash", fmt.Sprintf("%X", res.Data[:8]),"scf","scf",
+	//)
+	cnt+=block.NumTxs
+	fmt.Println(LogFlag,time.Now().Format("2006/01/02 15:04:05"),"Committed state","height",block.Height,"txs",block.NumTxs,"hash",block.Hash().String(),"all",cnt,"propose",block.ProposerAddress)
 
 	// Update mempool.
 	err = blockExec.mempool.Update(
@@ -274,7 +281,7 @@ func execBlockOnProxyApp(
 	proxyAppConn.SetResponseCallback(proxyCb)
 
 	commitInfo, byzVals := getBeginBlockValidatorInfo(block, stateDB)
-
+	ts:=time.Now()
 	// Begin block
 	var err error
 	abciResponses.BeginBlock, err = proxyAppConn.BeginBlockSync(abci.RequestBeginBlock{
@@ -302,9 +309,11 @@ func execBlockOnProxyApp(
 		logger.Error("Error in proxyAppConn.EndBlock", "err", err)
 		return nil, err
 	}
-
-	logger.Info("Executed block", "height", block.Height, "validTxs", validTxs, "invalidTxs", invalidTxs)
-
+	if invalidTxs!=0{
+		fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs invalidTxs+++++++++++++++++++++++++++++++++++++++++++++++")
+	}
+	//logger.Info("Executed block", "height", block.Height, "validTxs", validTxs, "invalidTxs", invalidTxs,"appHash",block.AppHash.String(),"hash",block.Hash().String())
+	fmt.Println(LogFlag,time.Now().Format("2006/01/02 15:04:05"),"apply block end","len(txs)",block.NumTxs,"validTxs",validTxs,"invalidTxs",invalidTxs,"interval",time.Now().Sub(ts).Seconds(),"proposal address",block.ProposerAddress.String())
 	return abciResponses, nil
 }
 
